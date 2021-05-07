@@ -31,6 +31,8 @@ type
     procedure TestTransitAndWalkOptions;
     [Test]
     procedure Test2WalkOptions;
+    [Test]
+    procedure Test2TransitOptions;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,6 +108,52 @@ begin
   Assert.AreEqual(0.0,WaitTime,5E-6);
   Assert.AreEqual(0.0,LineProbabilities[0],5E-6);
   Assert.AreEqual(1.0,LineProbabilities[1],5E-6);
+end;
+
+procedure TGentilLineChoiTest.Test2TransitOptions;
+// Choice between 2 transit options:
+//   Line 1: headway 8 min, travel time 11 min
+//   Line 2: headway 10 min, travel time 9 min
+// Line 1 will be chosen when Line 2 departs at least 2 (11-9) minutes later
+Const
+  NDraws = MaxInt;
+  Headway1 = 8;
+  TimeToDestination1 = 11;
+  Headway2 = 10;
+  TimeToDestination2 = 9;
+Var
+  WaitTime: Float64;
+  LineProbabilities: array of Float64;
+begin
+  // Apply choice model
+  SetLength(LineProbabilities,2);
+  LineChoiceOptions.Clear;
+  LineChoiceOptions.AddOption(Headway1,TimeToDestination1);
+  LineChoiceOptions.AddOption(Headway2,TimeToDestination2);
+  LineChoiceModel.LineChoice(LineChoiceOptions,LineProbabilities,WaitTime);
+  // Simulate line choice
+  var Line1Boardings := 0;
+  var Line2Boardings := 0;
+  var TotalWait := 0.0;
+  for var Draw := 1 to NDraws do
+  begin
+    var Departure1 := Headway1*random;
+    var Departure2 := Headway2*random;
+    var Arrival1 := Departure1+TimeToDestination1;
+    var Arrival2 := Departure2+TimeToDestination2;
+    if Arrival1 < Arrival2 then
+    begin
+      Inc(Line1Boardings);
+      TotalWait := TotalWait + Departure1;
+    end else
+    begin
+      Inc(Line2Boardings);
+      TotalWait := TotalWait + Departure2;
+    end;
+  end;
+  Assert.AreEqual(TotalWait/NDraws,WaitTime,5E-6);
+  Assert.AreEqual(Line1Boardings/NDraws,LineProbabilities[0],5E-6);
+  Assert.AreEqual(Line2Boardings/NDraws,LineProbabilities[1],5E-6);
 end;
 
 initialization
